@@ -63,8 +63,9 @@ observer.observe(document, {
 //////////////////////////////////////////////////////////////////////////////
 var dwnlData =[];
 var tweets_dwnld = [];
-// Both engines score every tweet; tweetSentiment[itemId] = { afinn: affect, sentistrength: affect|null }
+// Every engine scores every tweet; tweetSentiment[itemId] = { afinn, vader, sentistrength: affect|null }
 var tweetSentiment = {};
+var feedRecords = {}; // itemId -> one CSV row's worth of AFINN/VADER output per tweet
 var skipped = new Set();
 // var skipped = ();
 var numTweets = 0; // total distinct tweets seen, regardless of engine (used for the download filename)
@@ -76,10 +77,11 @@ var createdHrzBarPlot = false;
 // switching the dropdown never mixes one tool's counts into the other's.
 var counts = {
   afinn: { han: 0, hap: 0, lan: 0, lap: 0, neu: 0, numTweets: 0 },
+  vader: { han: 0, hap: 0, lan: 0, lap: 0, neu: 0, numTweets: 0 },
   sentistrength: { han: 0, hap: 0, lan: 0, lap: 0, neu: 0, numTweets: 0 }
 };
 
-// Which engine's counts/borders are currently displayed. Both engines score
+// Which engine's counts/borders are currently displayed. Every engine scores
 // every tweet in the background regardless of this value - it only picks
 // which tool's numbers show in the chart and which classification paints
 // tweet borders.
@@ -143,6 +145,29 @@ function updateChart() {
   drawHrzBarPlot( data, colors );
 }
 
+function csvEscape(value) {
+  var s = value === undefined || value === null ? '' : String(value);
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
+function downloadFeedCsv() {
+  var header = ['tweet_id', 'posted_at', 'text', 'afinn_pos', 'afinn_neg', 'afinn_judgment', 'vader_compound', 'vader_judgment'];
+  var rows = [header.join(',')];
+  Object.keys(feedRecords).forEach(function(id) {
+    var r = feedRecords[id];
+    rows.push(header.map(function(k) { return csvEscape(r[k]); }).join(','));
+  });
+  var blob = new Blob([rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'ami_feed_' + new Date().toISOString().replace(/[:.]/g, '-') + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 // Called when the dropdown switches engines: repaints every visible tweet's
 // border from its cached classification for the newly selected engine (a
 // tweet SentiStrength hasn't scored yet just keeps its current border until
@@ -159,6 +184,18 @@ function refreshDisplayForEngine() {
     }
   }
   updateChart();
+}
+
+// VADER's compound score (-1..1) bucketed into the same five categories, using
+// VADER's documented cutoffs: +/-0.05 separates neutral, +/-0.5 separates strong.
+function classifyVaderAffect(compound) {
+  var affect = { HAP: false, LAP: false, HAN: false, LAN: false, NEU: false, compound: compound };
+  if (compound >= 0.5) { affect.HAP = true; }
+  else if (compound >= 0.05) { affect.LAP = true; }
+  else if (compound <= -0.5) { affect.HAN = true; }
+  else if (compound <= -0.05) { affect.LAN = true; }
+  else { affect.NEU = true; }
+  return affect;
 }
 
 // Classification for the SentiStrength engine, kept separate from the AFINN
@@ -188,7 +225,7 @@ function classifySentiStrengthAffect(positive, negative) {
   return affect;
 }
 
-function sentiStrengthCategoryLabel(affect) {
+function categoryLabel(affect) {
   var labels = [];
   if (affect.HAP) labels.push('HAP');
   if (affect.LAP) labels.push('LAP');
@@ -232,17 +269,29 @@ async function runCALM() {
 
         var entry = tweetSentiment[itemId];
         if (!entry) {
-          // first time we've seen this tweet: score it with AFINN right away
-          // (synchronous, no network) and queue it for SentiStrength too.
+          // first time we've seen this tweet: score it with AFINN and VADER right
+          // away (synchronous, no network) and queue it for SentiStrength too.
           numTweets += 1;
           tweets_dwnld+='--------------------------------------------';
           tweets_dwnld+=itemText;
           tweets_dwnld+='++++++++++++++++++++++++++++++++++++++++++++';
 
           var afinnAffect = getSentiment(itemText);
-          entry = { afinn: afinnAffect, sentistrength: null };
+          var vaderAffect = classifyVaderAffect(VADER_ANALYZER.polarity_scores(itemText).compound);
+          entry = { afinn: afinnAffect, vader: vaderAffect, sentistrength: null };
           tweetSentiment[itemId] = entry;
+          feedRecords[itemId] = {
+            tweet_id: itemId,
+            posted_at: item.querySelector('time')?.getAttribute('datetime') || '',
+            text: itemText,
+            afinn_pos: afinnAffect.positive,
+            afinn_neg: afinnAffect.negative,
+            afinn_judgment: categoryLabel(afinnAffect),
+            vader_compound: vaderAffect.compound,
+            vader_judgment: categoryLabel(vaderAffect)
+          };
           recordClassification('afinn', item, itemId, afinnAffect);
+          recordClassification('vader', item, itemId, vaderAffect);
           needsSentiStrength.push({ item: item, itemId: itemId, itemText: itemText });
         } else {
           // already seen: redraw the border from whichever engine is
@@ -263,7 +312,7 @@ async function runCALM() {
       for (var j = 0; j < needsSentiStrength.length; j++) {
         var t = needsSentiStrength[j];
         var affect = affects[j];
-        console.log('[SentiStrength] ' + sentiStrengthCategoryLabel(affect) + ' (pos=' + affect.positive + ', neg=' + affect.negative + ') ' + JSON.stringify(t.itemText));
+        console.log('[SentiStrength] ' + categoryLabel(affect) + ' (pos='+ affect.positive + ', neg=' + affect.negative + ') ' + JSON.stringify(t.itemText));
         tweetSentiment[t.itemId].sentistrength = affect;
         recordClassification('sentistrength', t.item, t.itemId, affect);
       }
@@ -537,7 +586,11 @@ function drawHrzBarPlot( data, colors){
       var sentiStrengthOption = document.createElement('option');
       sentiStrengthOption.value = 'sentistrength';
       sentiStrengthOption.textContent = 'SentiStrength (local server)';
+      var vaderOption = document.createElement('option');
+      vaderOption.value = 'vader';
+      vaderOption.textContent = 'VADER (local)';
       engineSelect.appendChild(afinnOption);
+      engineSelect.appendChild(vaderOption);
       engineSelect.appendChild(sentiStrengthOption);
       engineSelect.value = engine;
       engineSelect.onchange = function() {
@@ -547,9 +600,14 @@ function drawHrzBarPlot( data, colors){
       };
       box.appendChild(engineSelect);
 
+      var exportButton = document.createElement('button');
+      exportButton.textContent = 'Download CSV';
+      exportButton.onclick = downloadFeedCsv;
+      box.appendChild(exportButton);
+
       createdHrzBarPlot = true;
     }
-    var engineLabel = engine === 'sentistrength' ? 'SentiStrength' : 'AFINN';
+    var engineLabel = { afinn: 'AFINN', vader: 'VADER', sentistrength: 'SentiStrength' }[engine];
     document.getElementById('box_chart_title').innerHTML = `Affect Mix Index — ${engineLabel} (n=${counts[engine].numTweets})`;
     // document.getElementById('box_chart_title').innerHTML = title+${numTweets}+"Tweets";
 

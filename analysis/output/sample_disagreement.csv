@@ -1,0 +1,100 @@
+tweet_id,posted_at,text,afinn_pos,afinn_neg,afinn_judgment,vader_compound,vader_judgment,platform
+https://x.com/FoxNews/status/2107065672572207187,2026-10-05T11:09:38.000Z,"""American liberty is never more than one generation away from extinction.""
+
+Supreme Court Justice Samuel Alito invokes former President Ronald Reagan as he reflects on Americans' responsibility to preserve the Constitution during an interview on ""Life, Liberty & Levin.""
+
+""The",2,0,LAP,0.93,HAP,fox_news
+https://x.com/CNN/status/2105834563775705473,2026-10-02T01:37:39.000Z,"New York Gov. Kathy Hochul announced she is appointing New York State Attorney General Letitia James as special prosecutor in the alleged sexual assault case at Cornell University, saying new information “has raised serious questions about how this case was handled.""",0,0,NEU,-0.34,LAN,cnn
+https://x.com/BBC/status/1882382776672084002,2025-01-23T11:00:01.000Z,"This spin-off is all about Amanda, and you don’t want to miss it! 👀
+ 
+Brand-new #Amandaland coming to #iPlayer Wednesday 5th February!",1,2,HAN,-0.2225,LAN,bbc
+https://x.com/FoxNews/status/2106790927683489981,2026-10-04T16:57:54.000Z,"Country star Zach Bryan sparks fresh debate after wearing a ""Free Palestine"" shirt during his show at Gillette Stadium.
+
+Bryan wore the shirt just weeks after Macklemore said he was dropped from Ed Sheeran's tour after pressure from Gillette Stadium owner Robert Kraft.
+
+See how",1,1,LAN,0.5267,HAP,fox_news
+https://x.com/BBC/status/1840787439427740156,2024-09-30T16:15:00.000Z,"Has Gemma found a possible long lost relative?! 👀   
+
+Watch #WhoDoYouThinkYouAre? now on #iPlayer",0,3,HAN,-0.4501,LAN,bbc
+https://x.com/BBC/status/1896621596447568225,2025-03-03T18:00:00.000Z,"Life after #Motherland 💜
+
+Watch brand-new #Amandaland now, only on #iPlayer
+
+#Comedy",1,0,LAP,0.0,NEU,bbc
+https://x.com/CNN/status/2105423532049965518,2026-09-30T22:24:21.000Z,"Paramount has entered the final stages of merging with Warner Bros. Discovery after a federal judge approved last week's settlement of an antitrust lawsuit filed by state attorneys general. 
+https://
+cnn.it/4ACCr65",2,2,LAN,0.2263,LAP,cnn
+https://x.com/CNN/status/2105811059571392648,2026-10-02T00:04:15.000Z,"An Amazon Air cargo plane that careened off the runway in Miami last month didn't touch down until it was nearly ¾ of a mile past the threshold and the captain didn't attempt to abort the landing until there was only 930 feet of pavement remaining, the National Transportation",0,0,NEU,0.1779,LAP,cnn
+https://x.com/FoxNews/status/2107117556993593723,2026-10-05T14:35:48.000Z,"WATCH: A suspected narco-trafficking boat erupts in flames as U.S. forces carry out another lethal strike in the Caribbean.
+
+SOUTHCOM says forces execute the strike on a go-fast vessel traveling along an established trafficking route after intelligence confirms its ""active",1,1,LAN,0.4404,LAP,fox_news
+https://x.com/FoxNews/status/2106933893706211579,2026-10-05T02:25:59.000Z,"""American liberty is never more than one generation away from extinction.""
+
+Referencing the words of former President Ronald Reagan, Supreme Court Justice Samuel Alito reflects on the responsibility Americans have to protect the nation's founding document during an interview on",2,0,LAP,0.9186,HAP,fox_news
+https://x.com/FoxNews/status/2106912418131587214,2026-10-05T01:00:39.000Z,"""They want the Constitution to mean whatever they want it to mean.""
+
+Supreme Court Justice Samuel Alito discusses originalism on ""Life, Liberty & Levin,"" explaining his view that the Constitution should be interpreted according to the meaning of its words when they were adopted.",2,0,LAP,0.9001,HAP,fox_news
+https://x.com/CNN/status/2106187689925960073,2026-10-03T01:00:51.000Z,Terrorist images were found on Flydubai suspect Hamam al-Hammami's social media,0,1,LAN,-0.7845,HAN,cnn
+https://x.com/CNN/status/2105858058559578563,2026-10-02T03:11:00.000Z,A white Dallas police officer convicted of killing a Black man in his apartment that she mistook for her own was granted parole Thursday after serving seven years of her 10-year sentence.,1,3,HAN,-0.4767,LAN,cnn
+https://x.com/BBC/status/1892260074241802651,2025-02-19T17:08:52.000Z,"There’s nothing worse than your own parents trying to teach you maths 😭
+
+Watch #Amandaland now, only on #iPlayer
+
+#Comedy",1,3,HAN,0.3724,LAP,bbc
+https://x.com/FoxNews/status/2106383781657759893,2026-10-03T14:00:02.000Z,"Your immigration status could become part of filing your federal taxes.
+
+The Trump administration is moving to require taxpayers claiming certain refundable tax credits to certify whether they meet federal citizenship or immigration eligibility standards. The IRS says the",1,0,LAP,0.5574,HAP,fox_news
+https://x.com/CNN/status/2105477858189594941,2026-10-01T02:00:13.000Z,"A Flydubai passenger recounted how he and other passengers stopped the alleged attacker, saying that he put him in a chokehold and dragged him out of the cockpit before returning and grabbing the plane's controls. 
+https://
+cnn.it/4yiPIyW",0,1,LAN,-0.7003,HAN,cnn
+https://x.com/BBC/status/1897316176109195316,2025-03-05T16:00:01.000Z,"Gan-Gan would be me, I fear
+
+Watch brand-new #Amandaland now, only on #iPlayer
+
+ #Comedy",1,2,HAN,-0.4939,LAN,bbc
+https://x.com/BBC/status/1887848797415395361,2025-02-07T13:00:02.000Z,"There’s two types of parents in this world 😅
+
+Watch #Amandaland now, only on iPlayer 
+
+#Motherland #Comedy",1,0,LAP,0.0,NEU,bbc
+https://x.com/FoxNews/status/2106531258419261770,2026-10-03T23:46:04.000Z,WATCH LIVE: Trump addresses voters in battleground Ohio ahead of critical election,0,0,NEU,-0.6124,HAN,fox_news
+https://x.com/FoxNews/status/2106924315752943683,2026-10-05T01:47:56.000Z,"""Our Constitution identifies what is most important.""
+
+Supreme Court Justice Samuel Alito joins ""Life, Liberty & Levin"" to discuss the principles behind the U.S. Constitution and what he sees as the document's enduring strength.
+
+""It focuses on the essentials,"" Alito says.",2,0,LAP,0.931,HAP,fox_news
+https://x.com/BBC/status/1876267480722948282,2025-01-06T14:00:01.000Z,"Ok, but why is this me rn 🫠
+ 
+#GavinAndStacey #iPlayer #BackToWork",0,0,NEU,0.1531,LAP,bbc
+https://x.com/FoxNews/status/2106797704974123137,2026-10-04T17:24:49.000Z,"A stranded dog was rescued from the bed of a pickup truck after rising flash floodwaters trapped the vehicle in Rocksprings, Texas.
+
+Video shows firefighters using a dinghy to reach the truck and safely bring the dog back to dry land.",2,2,LAN,0.4019,LAP,fox_news
+https://x.com/CNN/status/2106122156920697235,2026-10-02T20:40:26.000Z,"A ""God made Trump"" ad and at least 12 others are part of a controversial taxpayer-funded ad campaign to promote the president and his policies. 
+https://
+cnn.it/4i0KySo",1,2,HAN,0.4404,LAP,cnn
+https://x.com/BBC/status/1923408109428470110,2025-05-16T16:00:03.000Z,"Twelve unlucky-in-love singles are matched into couples, marry, and then immediately start their honeymoon on a tropical island! Will they thrive in isolation and find love… or will they flare out?! 🔥🏝️
+
+Brand-new Stranded on Honeymoon Island, coming soon to BBC One and iPlayer",3,0,HAP,-0.508,HAN,bbc
+https://x.com/FoxNews/status/2106434586620121124,2026-10-03T17:21:55.000Z,"EXCLUSIVE: Nolan Wells’ friend details the terrifying moment their boat starts sinking in real time, telling 
+@kayleighmcenany
+ it forced everyone onboard to scramble.
+
+“The bilge pump, nothing’s turning on, the battery’s underwater, and the whole boat just shuts off.”
+
+Jax Pitalo",2,1,LAP,-0.3109,LAN,fox_news
+https://x.com/BBC/status/1889358738894557229,2025-02-11T17:00:00.000Z,"That is what you call creepy! 😱
+
+Watch the brand-new series of #Uncanny on #iPlayer now
+
+Are you team believer or team sceptic? Danny Robins brings his hit podcast to the screen, investigating stories of the paranormal. It's about to get weird. 
+@danny_robins",0,2,HAN,-0.4574,LAN,bbc
+https://x.com/BBC/status/1894760583309791742,2025-02-26T14:45:00.000Z,"Very wise dating advice from Gan-Gan 
+
+Watch #Amandaland now, only on #iPlayer
+
+ #Comedy",1,0,LAP,0.5256,HAP,bbc
+https://x.com/CNN/status/2106700913633071238,2026-10-04T11:00:13.000Z,"High speed passenger rail is common around the globe, from major countries like Japan, France and China, all the way to emerging economies like Morocco.
+
+The United States is a glaring exception, with no passenger trains that meet the global definition of high speed, or that run",2,1,LAP,0.6808,HAP,cnn
+https://x.com/CNN/status/2105398855030169740,2026-09-30T20:46:18.000Z,"A lawyer who aided President Donald Trump's 2020 election reversal schemes has left the sweeping federal investigation into the president's foes, a person familiar with the matter told CNN.",1,0,LAP,-0.4404,LAN,cnn
+https://x.com/CNN/status/2105967300230754765,2026-10-02T10:25:06.000Z,"The US State Department directed millions of dollars originally earmarked to promote human rights to promote far-right causes including Afrikaner rights in South Africa, safeguarding ""Western civilizational norms,"" and documenting ""backsliding"" in Europe related to mass",1,0,LAP,0.743,HAP,cnn
