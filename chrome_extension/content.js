@@ -57,119 +57,220 @@ function download(filename, text) {
 // and what types of mutations trigger the callback
 observer.observe(document, {
   subtree: true,
-  attributes: true
+  childList: true
   //...
 });
 //////////////////////////////////////////////////////////////////////////////
 var dwnlData =[];
 var tweets_dwnld = [];
+// Both engines score every tweet; tweetSentiment[itemId] = { afinn: affect, sentistrength: affect|null }
 var tweetSentiment = {};
 var skipped = new Set();
 // var skipped = ();
-var numTweets = 0;
+var numTweets = 0; // total distinct tweets seen, regardless of engine (used for the download filename)
 var createdPieChart = false;
 var createdBarPlot = false;
 var createdHrzBarPlot = false;
-var lap = 0;
-var hap = 0;
-var lan = 0;
-var han = 0;
-var neu = 0;
+
+// Running HAN/LAN/NEU/LAP/HAP + total tallies, kept separately per engine so
+// switching the dropdown never mixes one tool's counts into the other's.
+var counts = {
+  afinn: { han: 0, hap: 0, lan: 0, lap: 0, neu: 0, numTweets: 0 },
+  sentistrength: { han: 0, hap: 0, lan: 0, lap: 0, neu: 0, numTweets: 0 }
+};
+
+// Which engine's counts/borders are currently displayed. Both engines score
+// every tweet in the background regardless of this value - it only picks
+// which tool's numbers show in the chart and which classification paints
+// tweet borders.
+var engine = 'afinn';
+var isProcessingSentiStrength = false;
+chrome.storage.local.get(['engine'], function(res) {
+  if (res && res.engine) engine = res.engine;
+});
+chrome.storage.onChanged.addListener(function(changes, area) {
+  if (area === 'local' && changes.engine) {
+    engine = changes.engine.newValue;
+    refreshDisplayForEngine();
+  }
+});
 
 //////////////// Function to do the task /////////////////////////////////////
-function runCALM() {
+function applyAffectToTweet(item, affect) {
+  if (affect.HAN) {
+    // High Arousal Negative: remove it from the feed entirely instead of
+    // just bordering it, per the "filter it out" use case.
+    item.remove();
+    return;
+  }
+  var nullSentiment = true;
+  if (affect.HAP) { item.style.border = "thick solid yellow"; nullSentiment = false; }
+  if (affect.LAN) { item.style.border = "thick solid blue"; nullSentiment = false; }
+  if (affect.LAP) { item.style.border = "thick solid green"; nullSentiment = false; }
+  if (affect.NEU) { item.style.border = "thick solid gray"; nullSentiment = false; }
+  if (nullSentiment) {
+    // want to see cases where tweets were found but not outlined
+    console.log('Found null sentiment', item);
+    item.style.border = "thick solid pink";
+  }
+}
+
+// Tallies a classification under engineKey's counts, paints the tweet's
+// border only if engineKey is the one currently displayed, and always
+// refreshes the chart (cheap canvas redraw) so the visible engine's numbers
+// stay live no matter which engine just produced a result.
+function recordClassification(engineKey, item, itemId, affect) {
+  var c = counts[engineKey];
+  if (affect.HAN) { c.han += 1; }
+  if (affect.HAP) { c.hap += 1; }
+  if (affect.LAN) { c.lan += 1; }
+  if (affect.LAP) { c.lap += 1; }
+  if (affect.NEU) { c.neu += 1; }
+  c.numTweets += 1;
+
+  if (engineKey === engine) {
+    applyAffectToTweet(item, affect);
+  }
+  updateChart();
+}
+
+function updateChart() {
+  var c = counts[engine];
+  // flip the order make positive on the right for horizontal
+  var data = [ [ "😠", c.han ],[ "🙁", c.lan ],[ "😐", c.neu ],[ "🙂", c.lap ],[ "😄", c.hap ] ];
+  dwnlData = [ [ "HAN", c.han ],[ "LAN", c.lan ],[ "NEU", c.neu ],[ "LAP", c.lap ],[ "HAP", c.hap ]];
+  var colors = [ "red" ,"blue","lightgrey","green","yellow" ];
+  drawHrzBarPlot( data, colors );
+}
+
+// Called when the dropdown switches engines: repaints every visible tweet's
+// border from its cached classification for the newly selected engine (a
+// tweet SentiStrength hasn't scored yet just keeps its current border until
+// that result arrives), and redraws the chart with that engine's tallies.
+function refreshDisplayForEngine() {
+  var items = document.querySelectorAll("[data-testid='tweet']");
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    var itemId = item.querySelector('time')?.parentElement.href;
+    if (!itemId) continue;
+    var entry = tweetSentiment[itemId];
+    if (entry && entry[engine]) {
+      applyAffectToTweet(item, entry[engine]);
+    }
+  }
+  updateChart();
+}
+
+// Classification for the SentiStrength engine, kept separate from the AFINN
+// engine's classifyAffect(). Mirrors AffectFilter/AffectFilterServer/logic.py's
+// parse() exactly, on SentiStrength's own raw scale (positive 1-5, negative
+// -1 to -5; neutral baseline is pos=1/neg=-1, not 0/0).
+function classifySentiStrengthAffect(positive, negative) {
+  var affect = {
+    HAP: false,
+    LAP: false,
+    HAN: false,
+    LAN: false,
+    NEU: false,
+    positive: positive,
+    negative: negative
+  };
+
+  if (positive === 1 && negative === -1) {
+    affect.NEU = true;
+  } else {
+    if (positive > 1 && positive < 3) { affect.LAP = true; }
+    if (positive >= 3) { affect.HAP = true; }
+    if (negative < -1 && negative > -3) { affect.LAN = true; }
+    if (negative <= -3) { affect.HAN = true; }
+  }
+
+  return affect;
+}
+
+function sentiStrengthCategoryLabel(affect) {
+  var labels = [];
+  if (affect.HAP) labels.push('HAP');
+  if (affect.LAP) labels.push('LAP');
+  if (affect.HAN) labels.push('HAN');
+  if (affect.LAN) labels.push('LAN');
+  if (affect.NEU) labels.push('NEU');
+  return labels.length ? labels.join('+') : 'NONE';
+}
+
+function getSentimentsSentiStrength(texts) {
+  return new Promise(function(resolve, reject) {
+    chrome.runtime.sendMessage({ type: 'AMI_ANALYZE_SENTISTRENGTH', texts: texts }, function(response) {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      if (!response || !response.ok) {
+        reject(new Error((response && response.error) || 'Unknown error from background'));
+        return;
+      }
+      resolve(response.results.map(function(r) { return classifySentiStrengthAffect(r.positive, r.negative); }));
+    });
+  });
+}
+
+async function runCALM() {
     var items = document.querySelectorAll("[data-testid='tweet']");
+    var needsSentiStrength = []; // { item, itemId, itemText } still missing a SentiStrength result
 
     for (var i = 0; i < items.length; i++) {   // for each item box
         var item = items[i];
-        var itemText = item.childNodes[0].childNodes[0].childNodes[0].childNodes[1].childNodes[1].childNodes[1].childNodes[0].childNodes[0]?.innerText;
-        var itemId = item.childNodes[0].childNodes[0].childNodes[0].childNodes[1].childNodes[1].childNodes[0].querySelector('time')?.parentElement.href;
+        var itemText = item.querySelector("[data-testid='tweetText']")?.innerText;
+        var itemId = item.querySelector('time')?.parentElement.href;
         if (!itemId || !itemText) {
           if (!skipped.has(item)) {
             // avoiding spam of the same tweets over and over
-            // console.log(`Skipping (hasId: ${!!itemId} & hasText: ${!!itemText}):`, item);
             skipped.add(item);
-            // tweets_dwnld+=itemText;
-            // console.log(itemText);
-
           }
           continue
         }
-        // This is outside the if statement because lines should be drawn every time
-        var affect = tweetSentiment[itemId] || getSentiment(itemText);
-        var nullSentiment = true;
-        if(affect.HAN==true) {
-          item.style.border = "thick solid red";
-          if (!tweetSentiment[itemId]) { han += 1; }
-          nullSentiment = false;
-          // box.innerHTML += "High Arousal Negative Content(HAN)" + "<br>";
-          // item.remove()
 
-        }
-        if(affect.HAP==true) {
-          item.style.border = "thick solid yellow";
-          if (!tweetSentiment[itemId]) { hap += 1; }
-          nullSentiment = false;
-          // box.innerHTML += "High Arousal Positive Content(HAP)" + "<br>";
-          // item.remove()
-        }
-        if(affect.LAN==true) {
-          item.style.border = "thick solid blue";
-          if (!tweetSentiment[itemId]) { lan += 1; }
-          nullSentiment = false;
-          // box.innerHTML += "Low Arousal Negative Content(LAN)" + "<br>";
-          // item.remove()
-        }
-        if(affect.LAP==true) {
-          item.style.border = "thick solid green";
-          if (!tweetSentiment[itemId]) { lap += 1; }
-          nullSentiment = false;
-          // box.innerHTML += "Low Arousal Positive Content(LAP)" + "<br>";
-          // item.remove()
-        }
-        if(affect.NEU==true) {
-          item.style.border = "thick solid gray";
-          if (!tweetSentiment[itemId]) { neu += 1; }
-          nullSentiment = false;
-          // box.innerHTML += "Neutral Content(NEU)" + "<br>";
-          // item.remove()
-        }
-        if(nullSentiment) {
-          // want to see cases where tweets were found but not outlined
-          console.log('Found null sentiment', item);
-          item.style.border = "thick solid pink";
-        }
-
-        if (!tweetSentiment[itemId]) {
-          // only process tweets we haven't seen before
+        var entry = tweetSentiment[itemId];
+        if (!entry) {
+          // first time we've seen this tweet: score it with AFINN right away
+          // (synchronous, no network) and queue it for SentiStrength too.
           numTweets += 1;
-          tweetSentiment[itemId] = affect;
           tweets_dwnld+='--------------------------------------------';
           tweets_dwnld+=itemText;
           tweets_dwnld+='++++++++++++++++++++++++++++++++++++++++++++';
 
-          if(numTweets % 5 === 0 ){
-
-            data = [ [ "😄", hap ],[ "🙂", lap ],[ "😐", neu ],[ "🙁", lan ],[ "😠", han ] ]; 
-            dwnlData = [ [ "HAP", hap ],[ "LAP", lap ],[ "NEU", neu ],[ "LAN", lan ],[ "HAN", han ] ];
-            var colors = [ "yellow", "green", "lightgrey", "blue", "red" ];
-            // var colors = [ "  #fffc00", "#25d366", "#e8ecee", "#3b5998", " #ff0000" ];
-            // var colors = [ "#fffc00", "#25d366", "#e8ecee", "#1da1f2", "#ff0000" ];
-            //using the function
-            // drawPieChart( data, colors );
-            // drawBarPlot( data, colors );
-            
-            // // flip the order make positive on the right for horizontal 
-            data = [ [ "😠", han ],[ "🙁", lan ],[ "😐", neu ],[ "🙂", lap ],[ "😄", hap ] ]; 
-            dwnlData = [ [ "HAN", han ],[ "LAN", lan ],[ "NEU", neu ],[ "LAP", lap ],[ "HAP", hap ]];
-            var colors = [ "red" ,"blue","lightgrey","green","yellow" ];
-            drawHrzBarPlot( data, colors );
-
-
-              // alert("Based on the last"+numTweets+" Tweets, you are seeing "+han+" HAN tweets.");
-
+          var afinnAffect = getSentiment(itemText);
+          entry = { afinn: afinnAffect, sentistrength: null };
+          tweetSentiment[itemId] = entry;
+          recordClassification('afinn', item, itemId, afinnAffect);
+          needsSentiStrength.push({ item: item, itemId: itemId, itemText: itemText });
+        } else {
+          // already seen: redraw the border from whichever engine is
+          // currently displayed (React can re-render the node)
+          var affect = entry[engine];
+          if (affect) applyAffectToTweet(item, affect);
+          if (entry.sentistrength === null) {
+            needsSentiStrength.push({ item: item, itemId: itemId, itemText: itemText });
           }
         }
+    }
+
+    if (needsSentiStrength.length === 0 || isProcessingSentiStrength) return; // a batch is already in flight; catch these next pass
+
+    isProcessingSentiStrength = true;
+    try {
+      var affects = await getSentimentsSentiStrength(needsSentiStrength.map(function(t) { return t.itemText; }));
+      for (var j = 0; j < needsSentiStrength.length; j++) {
+        var t = needsSentiStrength[j];
+        var affect = affects[j];
+        console.log('[SentiStrength] ' + sentiStrengthCategoryLabel(affect) + ' (pos=' + affect.positive + ', neg=' + affect.negative + ') ' + JSON.stringify(t.itemText));
+        tweetSentiment[t.itemId].sentistrength = affect;
+        recordClassification('sentistrength', t.item, t.itemId, affect);
+      }
+    } catch (e) {
+      console.error('SentiStrength request failed for this batch, will retry next pass:', e);
+    } finally {
+      isProcessingSentiStrength = false;
     }
 }
 //////////////////////////////////////////////////////////////////////////////
@@ -428,9 +529,28 @@ function drawHrzBarPlot( data, colors){
       // document.body.appendChild(pieChart); // adds the canvas to the body element
       document.getElementById('box_chart_id').appendChild(pieChart);
 
+      var engineSelect = document.createElement('select');
+      engineSelect.id = 'ami_engine_select';
+      var afinnOption = document.createElement('option');
+      afinnOption.value = 'afinn';
+      afinnOption.textContent = 'AFINN (local)';
+      var sentiStrengthOption = document.createElement('option');
+      sentiStrengthOption.value = 'sentistrength';
+      sentiStrengthOption.textContent = 'SentiStrength (local server)';
+      engineSelect.appendChild(afinnOption);
+      engineSelect.appendChild(sentiStrengthOption);
+      engineSelect.value = engine;
+      engineSelect.onchange = function() {
+        engine = engineSelect.value;
+        chrome.storage.local.set({ engine: engine });
+        refreshDisplayForEngine();
+      };
+      box.appendChild(engineSelect);
+
       createdHrzBarPlot = true;
     }
-    document.getElementById('box_chart_title').innerHTML = `Affect Mix Index (n=${numTweets})`;
+    var engineLabel = engine === 'sentistrength' ? 'SentiStrength' : 'AFINN';
+    document.getElementById('box_chart_title').innerHTML = `Affect Mix Index — ${engineLabel} (n=${counts[engine].numTweets})`;
     // document.getElementById('box_chart_title').innerHTML = title+${numTweets}+"Tweets";
 
     // var context = canvas.getContext( "2d" );
@@ -492,52 +612,46 @@ function drawHrzBarPlot( data, colors){
 }
 //////////////////////////////////////////////////////////////////////////////
 
-function getSentiment(itemText) {
-    affect = {
+function classifyAffect(positive, negative) {
+    var affect = {
         HAP: false,
         LAP: false,
         HAN: false,
         LAN: false,
         NEU: false,
-        positive: 0,
-        negative: 0
+        positive: positive,
+        negative: negative
     };
 
-    if (itemText.length > 0) {
-        sentiment = Sentimood.prototype.analyze(itemText);
-        positive = sentiment.positive.score;
-        negative = sentiment.negative.score;
-        affect.positive = positive;
-        affect.negative = negative;
-        if (positive == 0 && negative == 0) {
-            affect.NEU = true;
-            affect.neu += 1;
-        }else if(positive ==  negative){
-            if(negative >= 3){
-                affect.HAN = true;
-                affect.han += 1;
-            }else{
-                affect.LAN = true;
-                affect.lan += 1;
-            }
-        }else {
-            if (positive > 0 && positive <= 2 && negative < positive) {
-                affect.LAP = true;
-                affect.lap += 1;
-            }else if (positive >= 3 && negative < positive) {
-                affect.HAP = true;
-                affect.hap += 1;
-            }
-            if (negative > 0 && negative <= 1 && positive < negative) {
-                affect.LAN = true;
-                affect.lan += 1;
-            }else if (negative >= 2 && positive < negative) {
-                affect.HAN = true;
-                affect.han += 1;
-            }
+    if (positive == 0 && negative == 0) {
+        affect.NEU = true;
+    }else if(positive ==  negative){
+        if(negative >= 3){
+            affect.HAN = true;
+        }else{
+            affect.LAN = true;
+        }
+    }else {
+        if (positive > 0 && positive <= 2 && negative < positive) {
+            affect.LAP = true;
+        }else if (positive >= 3 && negative < positive) {
+            affect.HAP = true;
+        }
+        if (negative > 0 && negative <= 1 && positive < negative) {
+            affect.LAN = true;
+        }else if (negative >= 2 && positive < negative) {
+            affect.HAN = true;
         }
     }
-   return affect
+    return affect;
+}
+
+function getSentiment(itemText) {
+    if (!itemText || itemText.length === 0) {
+        return classifyAffect(0, 0);
+    }
+    var sentiment = Sentimood.prototype.analyze(itemText);
+    return classifyAffect(sentiment.positive.score, sentiment.negative.score);
 }
 //////////////////////////////////////////////////////////////////////////////
 

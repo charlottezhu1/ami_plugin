@@ -1,57 +1,53 @@
-AMI: An Affect Mix Index tool for monitoring social media sentiment
-===========
-The AMI plugin enables social media users to measure and analyze the affective content of any source (currently on twitter.com).
+# AMI — Affect Mix Index
 
-How it works
-------------
-AMI works by reading in each post and then scoring each word in the tweet with a positive or negative integer based on this dictionary (https://github.com/soops/sentimood). Then based on the sum of all the words in the post, AMI labels each post as primarily containing one of five affective categories: High Arousal Negative (HAN), Low Arousal Negative (LAN), Neutral (NEU), Low Arousal Positive (LAP), or High Arousal Positive (HAP).
+AMI is a Chrome extension that shows the emotional ("affective") makeup of the posts on a Twitter/X page. It scores every tweet it sees, outlines each tweet with a color for its category, and draws a live bar chart of the mix in the page's side navigation.
 
-Currently, the plugin only works on the Chrome browser (stay tuned for a Safari update).
+Each tweet is placed in one of five categories:
 
-You do not need a twitter account for this to work.
-If you don't have an account, you can go here: https://twitter.com/explore
+| Code | Meaning |
+|------|---------|
+| HAN | High Arousal Negative |
+| LAN | Low Arousal Negative |
+| NEU | Neutral |
+| LAP | Low Arousal Positive |
+| HAP | High Arousal Positive |
 
-The AMI plugin will overlay a continuously updated graphic on twitter's User Interface to show you the affective breakdown of the current twitter stream. (future versions may code different adaptive display options)
+## Repository layout
 
-Every time you visit a different feed or page on twitter you must reload the page so that the AMI graphic can refresh with an accurate count of that page's affective content. (future versions may include an automatic page refresh)
+```
+ami_plugin/
+├── chrome_extension/   Manifest V3 extension (content script, background worker, AFINN lexicon)
+└── backend/            Optional local server: Flask + py4j bridge to the Java SentiStrength library
+```
 
-Installation
-------------
-First download and unzip the folder
-<img width="1080" alt="ami_dwnld_instr" src="https://user-images.githubusercontent.com/1163119/189460856-3e9f0923-c62c-4c38-bbde-3e7da87ba390.png">
+## How it works
 
-Then...
+```
+ twitter.com / x.com page
+   content.js ── MutationObserver finds [data-testid='tweet'] nodes as you scroll
+      │
+      ├─► AFINN engine (sentiment.js, runs in the page, no network)
+      │
+      └─► chrome.runtime message ─► background.js ─► POST http://localhost:5050/analyze
+                                                       │
+                                  backend/app.py (Flask) ─ py4j ─► SentiStrengthService (Java, port 25333)
+```
 
-Mac:
-Open Chrome
-Go to Window --> Extensions
-<img width="804" alt="ami_chome_ext" src="https://user-images.githubusercontent.com/1163119/189463233-ceb34315-1647-4036-aa03-c8596155249e.png">
+- **Two engines run on every tweet.** AFINN is built into the extension. SentiStrength is optional and needs the local backend. A dropdown in the chart switches which engine's counts and tweet borders are shown. The choice is saved in `chrome.storage.local`, and the two engines' counts are kept separate.
+- **Classification** is done in `content.js`: `classifyAffect` for AFINN and `classifySentiStrengthAffect` for SentiStrength, each with its own thresholds. The backend only returns raw positive and negative scores.
+- **Export:** clicking the extension's toolbar icon downloads two `.txt` files. One has the category counts and the other has the tweet text, both named after the current page.
 
+## Quick start
 
+1. **Extension (AFINN only):** open `chrome://extensions`, turn on *Developer mode*, click *Load unpacked*, and select the `chrome_extension/` folder. Then open [twitter.com](https://twitter.com) or x.com. No account is needed. Reload the page when you move to a new feed so the chart restarts.
+2. **SentiStrength (optional):** start the backend as described in [backend/README.md](backend/README.md), then pick *SentiStrength (local server)* in the chart dropdown.
 
-Toggle on "Developer Mode" on the upper right corner
-Click "Load Unpacked"
-<img width="674" alt="ami_dev_mode" src="https://user-images.githubusercontent.com/1163119/189463352-c370808f-66f4-4a07-905c-e43f59e7e01d.png">
+See [chrome_extension/README.md](chrome_extension/README.md) for the screenshot-based install guide.
 
+## Notes
 
-
-Navigate to the where you saved the folder, click on it
-Click Select
-<img width="676" alt="ami_select_ext" src="https://user-images.githubusercontent.com/1163119/189463647-ad370633-82ad-4b5b-93ff-6ee2b9139db7.png">
-
-
-
-Check to make sure you can see the extension is installed
-<img width="674" alt="ami_check_install" src="https://user-images.githubusercontent.com/1163119/189463835-6d428702-f4a9-4a47-9d3f-b6b97434d347.png">
-
-
-
-
-Windows:
-Open Chrome
-Go to Extension icon on upper right (looks like a puzzle piece type thing right next to the URL box) —> Manage Extensions
-Toggle on "Developer Mode" on the upper right corner
-Click "Load Unpacked"
-Navigate to the where you saved the folder, click on it
-Click Select
-Check to make sure you can see the extension is installed
+- Supported sites are `*.twitter.com` and `*.x.com`. The tweet selectors depend on Twitter's current DOM and may break when it changes.
+- The extension is written for Chrome only.
+- Some leftovers from earlier versions remain in `chrome_extension/`. `main.html` and `popup.js` are an old demo pop-up titled "CALMFilter", and `badge.js` is a stub. The manifest does not use any of them.
+- `backend/venv/` is a local virtualenv, not project source, and the repo has no `.gitignore` for it yet.
+- The git status shows the old top-level extension files as deleted. The same files now live in `chrome_extension/`.
